@@ -293,7 +293,7 @@ def check_environment():
             try:
                 free_bytes = ctypes.c_ulonglong(0)
                 ctypes.windll.kernel32.GetDiskFreeSpaceExW(
-                    ctypes.c_wchar_p(r'C:\\'), 
+                    ctypes.c_wchar_p('C:\\\\'), 
                     None, 
                     None, 
                     ctypes.pointer(free_bytes)
