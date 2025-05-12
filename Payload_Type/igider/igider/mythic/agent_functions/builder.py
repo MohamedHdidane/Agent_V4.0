@@ -90,7 +90,7 @@ class Igider(PayloadType):
         self.logger = self._setup_logger()
         
     def _setup_logger(self) -> logging.Logger:
-        logger = logging.getLogger(f"igider_builder_{self.uuid[:8]}")
+        logger = logging.getLogger("igider_builder")
         logger.setLevel(logging.DEBUG)
         return logger
 
